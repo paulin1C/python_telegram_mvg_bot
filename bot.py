@@ -187,7 +187,7 @@ def sendJourneys(bot, update, result, b_time):
             if result.group(4) in ["bis","until"]:
                 arrival_time = True
             try:
-                i_time = datetime_to_mvgtime(datetime.datetime.combine(datetime.datetime.now(), datetime.datetime.strptime(result.group(5), "%H:%M").time()))
+                i_time = datetime.datetime.combine(datetime.datetime.now(), datetime.datetime.strptime(result.group(5), "%H:%M").time())
             except:
                 bot.sendMessage(update.message.chat_id, text="invalid time :(\nplease use hh:mm format\nwill use current time now")
                 logger.warn('invalid time used by %s', update.message.from_user)
@@ -199,7 +199,7 @@ def sendJourneys(bot, update, result, b_time):
 def buildRouteMsg(route):
     body=""
     counter=0
-    for option in route['connectionList']:
+    for option in route:
         counter +=1
         body += "\n"
         body += "Option " + str(counter) + ":\n"
