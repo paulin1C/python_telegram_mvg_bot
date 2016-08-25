@@ -1,0 +1,3 @@
+[submodule "python_mvg_departures"]
+	path = python_mvg_departures
+	url = https://github.com/leftshift/python_mvg_departures.git
