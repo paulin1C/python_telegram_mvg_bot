@@ -232,9 +232,10 @@ def plan(bot, update, edit = False):
         row += 1
     if edit:
         bot.editMessageText(chat_id=update.message.chat_id,  text="Wähle eine Kategorie aus:", reply_markup=InlineKeyboardMarkup(buttons), message_id=update.message.message_id)
+        logger.info('Sending plan category select buttons to %s', update.from_user)
     else:
+        logger.info('Sending plan category select buttons to %s', update.message.from_user)
         bot.sendMessage(update.message.chat_id, text="Wähle eine Kategorie aus:", reply_markup=InlineKeyboardMarkup(buttons))
-    logger.info('Sending plan category select buttons to %s', update.message.from_user)
 
 def sendPlanCategory(bot, update, category_id):
     split = "planPlanId|split|"
@@ -249,12 +250,13 @@ def sendPlanCategory(bot, update, category_id):
     buttons.append([])
     buttons[row].append(InlineKeyboardButton("< Zurück", callback_data="planBack|split|x"))
     bot.editMessageText(chat_id=update.message.chat_id, text="Wähle einen Plan ausd der Kategorie "+ category_name +":", reply_markup=InlineKeyboardMarkup(buttons), message_id=update.message.message_id)
-    logger.info('Sending plan plan select buttons to %s', update.message.from_user)
+    logger.info('Sending plan plan select buttons to %s', update.from_user)
 
 def sendPlanPlan(bot, update, category_id, plan_id):
     file_id = plans[category_id]['content'][plan_id]['file_id']
     bot.editMessageText(chat_id=update.message.chat_id, text="Plan wird gesendet...", message_id=update.message.message_id)
     bot.send_document(update.message.chat_id, file_id)
+    logger.info('Sending real plan select buttons to %s', update.from_user)
 
 def buildRouteMsg(route):
     body=""
