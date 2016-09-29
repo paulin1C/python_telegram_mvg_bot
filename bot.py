@@ -95,7 +95,7 @@ def sendDepsforStation(bot, update, station_raw, message_id = -1):
         bot.sendMessage(update.message.chat_id, text='No matching station found.')
         logger.info('Not matching station name sent by: %s', from_user)
     else:
-        station_name = get_station(station_id)['name']
+        station_name = get_stations(station_id)[0]['name']
         departures = station.get_departures()
         if departures == []: #checking if there are deps for the station
             bot.editMessageText(chat_id=update.message.chat_id, text='At the moment there seem to be no departures for this station :(', message_id=update.message.message_id)
