@@ -18,7 +18,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 def start(bot, update):
-    bot.sendMessage(update.message.chat_id, text='Hi, send me the name of a public transport station or just share your location.\nUse /help to get more information (for example about how to get journeys details)')
+    bot.sendMessage(update.message.chat_id, text='Hallo, sende mir den Name einer Haltestelle \nUse /help to get more information (for example about how to get journeys details)')
     logger.info('start used by %s', update.message.from_user)
 
 def help(bot, update):
