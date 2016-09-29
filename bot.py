@@ -6,8 +6,9 @@ from datetime import *
 from telegram import *
 from telegram.ext import *
 from mvg import *
-import key
+import key, plans
 
+plans = plans.plans
 updater = Updater(key.key) #api key from file "key.py", create your's as shown in "key_sample.py"
 timer = updater.job_queue
 refresh = ([])
@@ -59,10 +60,20 @@ def gps(bot, update):
 
 def buttonHandler(bot, update):
     update = update.callback_query
-    dataType = update.data.split('|split|')[0]
-    data = update.data.split('|split|')[1]
+    response = update.data.split('|split|')
+    dataType = response[0]
+    data = response[1]
     if dataType == "station":
         sendDepsforStation(bot, update, data, update.message.message_id)
+    elif dataType == "planBack":
+        plan(bot, update, edit=True)
+    elif dataType == "planCategoryId":
+        sendPlanCategory(bot, update, int(data))
+    elif dataType == "planPlanId":
+        data = data.split('|wurst|')
+        sendPlanPlan(bot, update, int(data[1]), int(data[0]))
+    else:
+        logger.error("Something went wrong with the buttonHandler, no matching dataType")
 
 def msg(bot, update):
     #thanks to @uberardy for these regulare expressions
@@ -199,6 +210,52 @@ def sendJourneys(bot, update, result, b_time):
         bot.sendMessage(update.message.chat_id, text=msg, parse_mode=ParseMode.HTML)
         logger.info('journey from %s to %s sent to %s, b_time=%s', str(from_station_id), str(to_station_id), update.message.from_user, str(b_time))
 
+def plan(bot, update, edit = False):
+    """ Loop to test plans.py
+    msg = "Test Planausgabe, wird noch zu buttons"
+    for category in plans:
+        msg += "\n" + str(category['category_id']) + ": "
+        msg += category['name']
+        for plan in category['content']:
+            msg += "\n  "+str(plan['plan_id'])+": "
+            msg += plan['name']
+    bot.sendMessage(update.message.chat_id, text=msg)
+    """
+
+    split = "planCategoryId|split|"
+    row = 0
+    buttons = []
+    for category in plans:
+        buttons.append([])
+        callback_data = split+str(category['category_id'])
+        buttons[row].append(InlineKeyboardButton(category['name'], callback_data=callback_data))
+        row += 1
+    if edit:
+        bot.editMessageText(chat_id=update.message.chat_id,  text="Wähle eine Kategorie aus:", reply_markup=InlineKeyboardMarkup(buttons), message_id=update.message.message_id)
+    else:
+        bot.sendMessage(update.message.chat_id, text="Wähle eine Kategorie aus:", reply_markup=InlineKeyboardMarkup(buttons))
+    logger.info('Sending plan category select buttons to %s', update.message.from_user)
+
+def sendPlanCategory(bot, update, category_id):
+    split = "planPlanId|split|"
+    row = 0
+    buttons = []
+    category_name = plans[category_id]['name']
+    for plan in plans[category_id]['content']:
+        buttons.append([])
+        callback_data = split+str(plan['plan_id'])+"|wurst|"+str(category_id)
+        buttons[row].append(InlineKeyboardButton(plan['name'], callback_data=callback_data))
+        row += 1
+    buttons.append([])
+    buttons[row].append(InlineKeyboardButton("< Zurück", callback_data="planBack|split|x"))
+    bot.editMessageText(chat_id=update.message.chat_id, text="Wähle einen Plan ausd der Kategorie "+ category_name +":", reply_markup=InlineKeyboardMarkup(buttons), message_id=update.message.message_id)
+    logger.info('Sending plan plan select buttons to %s', update.message.from_user)
+
+def sendPlanPlan(bot, update, category_id, plan_id):
+    file_id = plans[category_id]['content'][plan_id]['file_id']
+    bot.editMessageText(chat_id=update.message.chat_id, text="Plan wird gesendet...", message_id=update.message.message_id)
+    bot.send_document(update.message.chat_id, file_id)
+
 def buildRouteMsg(route):
     body=""
     counter=0
@@ -264,6 +321,7 @@ def main():
     dp = updater.dispatcher #not double penetration
 
     dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("plan", plan))
     dp.add_handler(CommandHandler("Wasistdas", wasistdas))
     dp.add_handler(CommandHandler("help", help))
     dp.add_handler(MessageHandler([Filters.location], gps))
