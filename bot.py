@@ -91,7 +91,7 @@ def msg(bot, update):
         else:
             result = result2
             b_time = True
-        sendJourneys(bot, update, result, b_time)
+        sendRoutes(bot, update, result, b_time)
 
 def sendDepsforStation(bot, update, station_raw, message_id = -1):
     if message_id > -1:
@@ -187,10 +187,10 @@ def sendDepsforStation(bot, update, station_raw, message_id = -1):
             else:
                 bot.sendMessage(update.message.chat_id, text=msg, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
 
-def sendJourneys(bot, update, result, b_time):
+def sendRoutes(bot, update, result, b_time):
     try:
-        from_station_id = get_id_for_station(result.group(1))
-        to_station_id = get_id_for_station(result.group(3))
+        from_station_id = get_id_for_station(result.group(1).encode('utf8'))
+        to_station_id = get_id_for_station(result.group(3).encode('utf8'))
     except:
         bot.sendMessage(update.message.chat_id, text="Station nicht gefunden :(")
         logger.warn('Not matching station name in journeys used by %s', update.message.from_user)
