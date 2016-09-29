@@ -18,18 +18,18 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 def start(bot, update):
-    bot.sendMessage(update.message.chat_id, text='Hallo, sende mir den Name einer Haltestelle \nUse /help to get more information (for example about how to get journeys details)')
+    bot.sendMessage(update.message.chat_id, text='Hallo, sende mir den Name einer Haltestelle oder teile deinen Standort, um die Abfahrten für eine Haltestelle zu sehen.\nBenutze /help um mehr Informationen zu erhalten (z.B. über die Routenplanung)')
     logger.info('start used by %s', update.message.from_user)
 
 def help(bot, update):
     #bot.sendMessage(update.message.chat_id, text='This bot will send you the departure times of public transport stations in Munich (Germany).')
-    bot.sendMessage(update.message.chat_id, text='Just share your location and select a nearby station or send the name of the station to see its departures.\n\nYou can get journeys by sending messages like in these examples\nHauptbahnhof nach Ostbahnhof\noder\nMarienpaltz nach Obersendling um 20:00\noder\nOdensplatz nach Siemenswerke bis 21:00\nin the end it is:\nfromStation [nach|to] toStation ([ab|um|bis|at|until] time)')
+    bot.sendMessage(update.message.chat_id, text='sende mir den Name einer Haltestelle oder teile deinen Standort, um die Abfahrten für eine Haltestelle zu sehen.\n\nRouten können z.B. so geplant werden:\nMarienpaltz nach Obersendling um 20:00\noder\nOdensplatz nach Siemenswerke bis 21:00\noder\nTrudering nach Kreillerstraße\n\nFormel:\nfromStation [nach|to] toStation ([ab|um|bis|at|until] hh:mm)')
     logger.info('help used by %s', update.message.from_user)
 
 def gps(bot, update):
     stations = get_nearby_stations(update.message.location.latitude, update.message.location.longitude)
     if stations == []:
-        bot.sendMessage(update.message.chat_id, text='No nearby station found')
+        bot.sendMessage(update.message.chat_id, text='Keine Stationen in der Nähe gefunden')
         logger.info('No station found near %s', update.message.from_user)
     else:
         row = 0
@@ -51,16 +51,18 @@ def gps(bot, update):
             products = "(" + products + ")"
             name =  station['name'] + "  " + str(station['distance']) + "m  "+ products
             station_id = station['id']
-            buttons[row].append(InlineKeyboardButton(name, callback_data=str(station_id)))
+            split = "station|split|"
+            buttons[row].append(InlineKeyboardButton(name, callback_data=split+str(station_id)))
             row += 1
-    bot.sendMessage(update.message.chat_id, text="Select a station\nname, distance, services", reply_markup=InlineKeyboardMarkup(buttons))
+    bot.sendMessage(update.message.chat_id, text="Suche eine Station aus:\nName, Entfernung, Produkte", reply_markup=InlineKeyboardMarkup(buttons))
     logger.info('Sending %s gps station select buttons', update.message.from_user)
 
-def gps_answer(bot, update):
+def buttonHandler(bot, update):
     update = update.callback_query
-    station_id_str = update.data
-
-    sendDepsforStation(bot, update, station_id_str, update.message.message_id)
+    dataType = update.data.split('|split|')[0]
+    data = update.data.split('|split|')[1]
+    if dataType == "station":
+        sendDepsforStation(bot, update, data, update.message.message_id)
 
 def msg(bot, update):
     #thanks to @uberardy for these regulare expressions
@@ -92,13 +94,13 @@ def sendDepsforStation(bot, update, station_raw, message_id = -1):
         station_id = get_id_for_station(station_raw.encode('utf8'))
         station = Station(station_id)
     except:
-        bot.sendMessage(update.message.chat_id, text='No matching station found.')
+        bot.sendMessage(update.message.chat_id, text='Keine passende Station gefunden')
         logger.info('Not matching station name sent by: %s', from_user)
     else:
         station_name = get_stations(station_id)[0]['name']
         departures = station.get_departures()
         if departures == []: #checking if there are deps for the station
-            bot.editMessageText(chat_id=update.message.chat_id, text='At the moment there seem to be no departures for this station :(', message_id=update.message.message_id)
+            bot.editMessageText(chat_id=update.message.chat_id, text='Keine Abfahrten für diese Station', message_id=update.message.message_id)
             logger.info('No departures for %s, requested by %s', station_raw, from_user)
         else:
             logger.info('deps for %s (%s) to %s. Refresh = %s', station_id, station_name, from_user, refresh)
@@ -146,7 +148,7 @@ def sendDepsforStation(bot, update, station_raw, message_id = -1):
                 c=c+1
 
             if body == "":
-                body = "\n<i>No departures in the next 999 minutes</i>"
+                body = "\n<i>Keine Abfahrt in den nächsten 999 Minuten</i>"
             else:
                 body="<code>" + body + "</code>\n"
 
@@ -156,7 +158,8 @@ def sendDepsforStation(bot, update, station_raw, message_id = -1):
             buttons = []
             buttons.append([])
             now = datetime.datetime.now()
-            buttons[0].append(InlineKeyboardButton(zeit + " - tap to refresh", callback_data=str(station_id)))
+            split = "station|split|"
+            buttons[0].append(InlineKeyboardButton(zeit + " - tap to refresh", callback_data=split+str(station_id)))
             reply_markup=InlineKeyboardMarkup(buttons)
 
             station_name = "<b>"+station_name+"</b>"
@@ -178,7 +181,7 @@ def sendJourneys(bot, update, result, b_time):
         from_station_id = get_id_for_station(result.group(1))
         to_station_id = get_id_for_station(result.group(3))
     except:
-        bot.sendMessage(update.message.chat_id, text="Station(s) not found :(")
+        bot.sendMessage(update.message.chat_id, text="Station nicht gefunden :(")
         logger.warn('Not matching station name in journeys used by %s', update.message.from_user)
     else:
         arrival_time = False
@@ -189,7 +192,7 @@ def sendJourneys(bot, update, result, b_time):
             try:
                 i_time = datetime.datetime.combine(datetime.datetime.now(), datetime.datetime.strptime(result.group(5), "%H:%M").time())
             except:
-                bot.sendMessage(update.message.chat_id, text="invalid time :(\nplease use hh:mm format\nwill use current time now")
+                bot.sendMessage(update.message.chat_id, text="Zeit ungültig, bitte im Format hh:mm angeben\nAktuelle Zeit wird jetzt als Alternative verwendet")
                 logger.warn('invalid time used by %s', update.message.from_user)
         route = get_route(from_station_id, to_station_id, i_time, arrival_time)
         msg = buildRouteMsg(route)
@@ -265,7 +268,7 @@ def main():
     dp.add_handler(CommandHandler("help", help))
     dp.add_handler(MessageHandler([Filters.location], gps))
     dp.add_handler(MessageHandler([Filters.text], msg))
-    dp.add_handler(CallbackQueryHandler(gps_answer))
+    dp.add_handler(CallbackQueryHandler(buttonHandler))
 
     dp.add_error_handler(error)
 
