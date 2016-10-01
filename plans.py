@@ -8,22 +8,22 @@ plans = [
             {
                 'plan_id': 0,
                 'name': 'Schnellbahnnetz',
-                'file_id': 'BQADAgADjgEAAskbggk_fjG3tqvvrQI'
+                'file_id': 'https://www.mvg.de/dam/mvg/plaene/liniennetzplaene/schnellbahnnetzplan.pdf'
             },
             {
                 'plan_id': 1,
                 'name': 'Tramnetz',
-                'file_id': 'BQADAgADjwEAAskbggkb_l6TraU6xAI'
+                'file_id': 'https://www.mvg.de/dam/mvg/plaene/liniennetzplaene/tramnetz.pdf'
             },
             {
                 'plan_id': 2,
                 'name': 'Schienennetzplan',
-                'file_id': 'BQADAgADkAEAAskbggn6VE2y_DaUxgI'
+                'file_id': 'https://www.mvg.de/dam/mvg/plaene/liniennetzplaene/schienennetzplan.pdf'
             },
             {
                 'plan_id': 3,
                 'name': 'Nachtplan',
-                'file_id': 'BQADAgADjgEAAskbggk_fjG3tqvvrQI'
+                'file_id': 'https://www.mvg.de/dam/mvg/minifahrplaene/2016/nachtlinien/mvg-miniplan-nacht.pdf'
             }
         ]
     },
@@ -34,12 +34,12 @@ plans = [
             {
                 'plan_id': 0,
                 'name': 'Verkehrslinienplan Region',
-                'file_id': 'BQADAgADlAEAAskbggksx8W6m-WsJwI'
+                'file_id': 'https://www.mvg.de/dam/mvg/plaene/stadt-regionalnetzplaene/vl-region.pdf'
             },
             {
                 'plan_id': 1,
                 'name': 'Verkehrslinienplan Stadt',
-                'file_id': 'BQADAgADlQEAAskbggk7naTaVQltZQI'
+                'file_id': 'https://www.mvg.de/dam/mvg/plaene/stadt-regionalnetzplaene/vl-stadt.pdf'
             }
         ]
     },
@@ -50,12 +50,12 @@ plans = [
             {
                 'plan_id': 0,
                 'name': 'Innenraum',
-                'file_id': 'BQADAgADkgEAAskbggk9zZkLRHniDgI'
+                'file_id': 'https://www.mvg.de/dam/mvg/plaene/tarifplaene/tarifplan-innenraum.pdf'
             },
             {
                 'plan_id': 1,
                 'name': 'Gesamtnetz',
-                'file_id': 'BQADAgADkwEAAskbggnUlP-hymlHmAI'
+                'file_id': 'https://www.mvg.de/dam/mvg/plaene/tarifplaene/tarifplan-gesamt.pdf'
             }
         ]
     },
@@ -65,13 +65,13 @@ plans = [
         'content': [
             {
                 'plan_id': 0,
-                'name': 'Innenraum',
-                'file_id': 'BQADAgADlwEAAskbggnmIzeuJTMnGQI'
+                'name': 'Gesamtnetz',
+                'file_id': 'https://www.mvg.de/dam/mvg/plaene/barrierefreie-bahnhoefe/barrierefrei-gesamt.pdf'
             },
             {
                 'plan_id': 1,
-                'name': 'Gesamtnetz',
-                'file_id': 'BQADAgADlgEAAskbgglSj4c0iMlTBgI'
+                'name': 'Innenraum',
+                'file_id': 'https://www.mvg.de/dam/mvg/plaene/barrierefreie-bahnhoefe/barrierefrei-innenraum.pdf'
             }
         ]
     },
@@ -82,27 +82,27 @@ plans = [
             {
                 'plan_id': 0,
                 'name': 'Park and Ride',
-                'file_id': 'BQADAgADmAEAAskbggkpfRimKx0_iAI'
+                'file_id': 'https://www.mvg.de/dam/mvg/plaene/sonstige-plaene/park-and-ride.pdf'
             },
             {
                 'plan_id': 1,
                 'name': 'Bike and Ride',
-                'file_id': 'BQADAgADmQEAAskbggmijrY79U-cgAI'
+                'file_id': 'https://www.mvg.de/dam/mvg/plaene/sonstige-plaene/bike-and-ride.pdf'
             },
             {
                 'plan_id': 2,
                 'name': 'Defibrillatoren',
-                'file_id': 'BQADAgADmgEAAskbggm_eJSfBHmKHwI'
+                'file_id': 'https://www.mvg.de/dam/mvg/plaene/sonstige-plaene/defiplan.pdf'
             },
             {
                 'plan_id': 3,
                 'name': 'BOB Netz',
-                'file_id': 'BQADAgADmwEAAskbggn9t59e9xxs7gI'
+                'file_id': 'https://www.mvg.de/dam/mvg/plaene/sonstige-plaene/bob-streckennetz.pdf'
             },
             {
                 'plan_id': 4,
                 'name': 'DB Netz Bayern',
-                'file_id': 'BQADAgADnAEAAskbggkX7_dgjWWlWAI'
+                'file_id': 'https://www.mvg.de/dam/mvg/plaene/sonstige-plaene/streckennetz-bayern.pdf'
             }
         ]
     }
