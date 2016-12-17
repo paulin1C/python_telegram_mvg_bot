@@ -12,6 +12,7 @@ plans = plans.plans
 updater = Updater(key.key) #api key from file "key.py", create your's as shown in "key_sample.py"
 timer = updater.job_queue
 refresh = ([])
+station_ids = {}
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -57,6 +58,12 @@ def gps(bot, update):
             row += 1
     bot.sendMessage(update.message.chat_id, text="Suche eine Station aus:\nName, Entfernung, Produkte", reply_markup=InlineKeyboardMarkup(buttons))
     logger.info('Sending %s gps station select buttons', update.message.from_user)
+
+def addStation(station_id,station_name):
+    if idFromXY(station_name) == station_id:
+        station_ids[station_id] = station_name
+    else:
+        raise ValueError("name and id don't match")
 
 def buttonHandler(bot, update):
     update = update.callback_query
@@ -114,7 +121,13 @@ def nameFromXY(bot, update, station_raw):
         except(ValueError):
             station_name = "Id: "
             bot.sendMessage(update.message.chat_id, text='Leider gibt die MVG API keine Stationsnamen mehr für ids zurück.')
-    return station_name
+    try:
+        pass
+        #addStation(station_id, station_name)
+    except(ValueError):
+        return "Id: "
+    else:
+        return station_name
 
 def bodgeName(from_id):
     for to_id in [6,5,10]:
@@ -128,97 +141,96 @@ def bodgeName(from_id):
     raise(ValueError) #höhö
 
 def sendDepsforStation(bot, update, station_raw, message_id = -1):
+    refresh = False
+    from_user = update.message.from_user
     if message_id > -1:
         from_user = update.from_user
         refresh = True
+    try:
+        station_name = nameFromXY(bot, update, station_raw)
+        station_id = idFromXY(bot, update, station_raw)
+    except:
+        bot.sendMessage(update.message.chat_id, text="Station nicht gefunden :(")
+        logger.warn('Not matching station name in deps used by %s', update.message.from_user)
     else:
-        from_user = update.message.from_user
-        refresh = False
-        try:
-            station_name = nameFromXY(bot, update, station_raw)
-            station_id = idFromXY(bot, update, station_raw)
-        except:
-            bot.sendMessage(update.message.chat_id, text="Station nicht gefunden :(")
-            logger.warn('Not matching station name in deps used by %s', update.message.from_user)
+        # station_name = "testname" #get_stations(station_id)[0]['name']
+        departures = get_departures(station_id)
+        if departures == []: #checking if there are deps for the station
+            bot.sendMessage(chat_id=update.message.chat_id, text='Keine Abfahrten für diese Station')
+            logger.info('No departures for %s, requested by %s', station_raw, from_user)
         else:
-            # station_name = "testname" #get_stations(station_id)[0]['name']
-            departures = get_departures(station_id)
-            if departures == []: #checking if there are deps for the station
-                bot.editMessageText(chat_id=update.message.chat_id, text='Keine Abfahrten für diese Station', message_id=update.message.message_id)
-                logger.info('No departures for %s, requested by %s', station_raw, from_user)
+            logger.info('deps for %s (%s) to %s. Refresh = %s', station_id, station_name, from_user, refresh)
+
+            now = datetime.datetime.now()
+            header="minutes, service, destination"
+            body = ""
+
+            times=[]
+            products=[]
+            destinations=[]
+            i=0
+            for departure in departures:
+                len_dTM = len(str(departure['departureTimeMinutes']))
+                if not len_dTM > 3:
+                    times.append(str(departure['departureTimeMinutes']))
+                    product = build_label(departure['product'], departure['label'])
+                    products.append(product)
+                    destinations.append(departure['destination'])
+                    i=i+1
+
+            maxlen={}
+            maxlen['times'] = max(len(s) for s in times)
+            maxlen['products'] = max(len(s) for s in products)
+            maxlen['destinations'] = max(len(s) for s in destinations)
+            if maxlen['destinations'] > 18:
+                maxlen['destinations'] = 18
+
+            c = 0
+            while(i > 0):
+                row=products[c]
+                row=addspaces(maxlen['products']-len(products[c])+1, row)
+                if len(destinations[c]) > 18:
+                    row1 = destinations[c][:18] + "\n"
+                    row2 = addspaces(maxlen['products']+1)
+                    row2 = row2 + destinations[c][18:]
+                    row2 = addspaces(maxlen['destinations']-len(destinations[c][18:])+1, row2)
+                    row = row + row1 + row2
+                else:
+                    row=row+destinations[c]
+                    row=addspaces(maxlen['destinations']-len(destinations[c])+1,row)
+                row=row+times[c]
+                body=body+"\n"+row
+                i=i-1
+                c=c+1
+
+            if body == "":
+                body = "\n<i>Keine Abfahrt in den nächsten 999 Minuten</i>"
             else:
-                logger.info('deps for %s (%s) to %s. Refresh = %s', station_id, station_name, from_user, refresh)
-
-                now = datetime.datetime.now()
-                header="minutes, service, destination"
-                body = ""
-
-                times=[]
-                products=[]
-                destinations=[]
-                i=0
-                for departure in departures:
-                    len_dTM = len(str(departure['departureTimeMinutes']))
-                    if not len_dTM > 3:
-                        times.append(str(departure['departureTimeMinutes']))
-                        product = build_label(departure['product'], departure['label'])
-                        products.append(product)
-                        destinations.append(departure['destination'])
-                        i=i+1
-
-                maxlen={}
-                maxlen['times'] = max(len(s) for s in times)
-                maxlen['products'] = max(len(s) for s in products)
-                maxlen['destinations'] = max(len(s) for s in destinations)
-                if maxlen['destinations'] > 18:
-                    maxlen['destinations'] = 18
-
-                c = 0
-                while(i > 0):
-                    row=products[c]
-                    row=addspaces(maxlen['products']-len(products[c])+1, row)
-                    if len(destinations[c]) > 18:
-                        row1 = destinations[c][:18] + "\n"
-                        row2 = addspaces(maxlen['products']+1)
-                        row2 = row2 + destinations[c][18:]
-                        row2 = addspaces(maxlen['destinations']-len(destinations[c][18:])+1, row2)
-                        row = row + row1 + row2
-                    else:
-                        row=row+destinations[c]
-                        row=addspaces(maxlen['destinations']-len(destinations[c])+1,row)
-                    row=row+times[c]
-                    body=body+"\n"+row
-                    i=i-1
-                    c=c+1
-
-                if body == "":
-                    body = "\n<i>Keine Abfahrt in den nächsten 999 Minuten</i>"
-                else:
-                    body="<code>" + body + "</code>\n"
+                body="<code>" + body + "</code>\n"
 
 
-                zeit = now.strftime("%H:%M:%S")
+            zeit = now.strftime("%H:%M:%S")
 
-                buttons = []
-                buttons.append([])
-                now = datetime.datetime.now()
-                split = "station|split|"
-                buttons[0].append(InlineKeyboardButton(zeit + " - tap to refresh", callback_data=split+str(station_id)))
-                reply_markup=InlineKeyboardMarkup(buttons)
+            buttons = []
+            buttons.append([])
+            now = datetime.datetime.now()
+            split = "station|split|"
+            buttons[0].append(InlineKeyboardButton(zeit + " - tap to refresh", callback_data=split+str(station_id)))
+            reply_markup=InlineKeyboardMarkup(buttons)
 
-                station_name = "<b>"+station_name+"</b>"
-                station_id_text = "("+str(station_id)+")"
+            station_name = "<b>"+station_name+"</b>"
+            station_id_text = "("+str(station_id)+")"
 
-                msg=station_name+" "+station_id_text+" "+body
+            msg=station_name+" "+station_id_text+" "+body
 
-                if refresh:
-                    try:
-                        bot.editMessageText(chat_id=update.message.chat_id, text=msg, message_id=message_id, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
-                    except:
-                        bot.sendMessage(update.message.chat_id, text="Stop spamming!")
-                        logger.warn('User used refresh more than once per second: %s' % (from_user))
-                else:
-                    bot.sendMessage(update.message.chat_id, text=msg, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
+            if refresh:
+                try:
+                    bot.editMessageText(chat_id=update.message.chat_id, text=msg, message_id=message_id, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
+                except:
+                    bot.sendMessage(update.message.chat_id, text="Stop spamming!")
+                    logger.warn('User used refresh more than once per second: %s' % (from_user))
+            else:
+                bot.sendMessage(update.message.chat_id, text=msg, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
 
 def sendRoutes(bot, update, result, b_time):
     # try:
