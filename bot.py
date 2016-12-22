@@ -102,32 +102,34 @@ def msg(bot, update):
         sendRoutes(bot, update, result, b_time)
 
 def idFromXY(bot, update, station_raw):
-    try:
-        station_id = int(station_raw)
-    except(ValueError):
-        station = get_stations(station_raw)[0]
-        station_id = int(station['id'])
-    return station_id
+    return get_id_for_station(station_raw)
+    # try:
+    #     station_id = int(station_raw)
+    # except(ValueError):
+    #     station = get_stations(station_raw)[0]
+    #     station_id = int(station['id'])
+    # return station_id
 
 def nameFromXY(bot, update, station_raw):
-    try:
-        station_id = int(station_raw)
-    except:
-        station = get_stations(station_raw)[0]
-        station_name = station['name']
-    else:
-        try:
-            station_name = bodgeName(station_id)
-        except(ValueError):
-            station_name = "Id: "
-            bot.sendMessage(update.message.chat_id, text='Leider gibt die MVG API keine Stationsnamen mehr für ids zurück.')
-    try:
-        pass
-        #addStation(station_id, station_name)
-    except(ValueError):
-        return "Id: "
-    else:
-        return station_name
+    return get_stations(station_raw)[0]['name']
+    # try:
+    #     station_id = int(station_raw)
+    # except:
+    #     station = get_stations(station_raw)[0]
+    #     station_name = station['name']
+    # else:
+    #     try:
+    #         station_name = bodgeName(station_id)
+    #     except(ValueError):
+    #         station_name = "Id: "
+    #         bot.sendMessage(update.message.chat_id, text='Leider gibt die MVG API keine Stationsnamen mehr für ids zurück.')
+    # try:
+    #     pass
+    #     #addStation(station_id, station_name)
+    # except(ValueError):
+    #     return "Id: "
+    # else:
+    #     return station_name
 
 def bodgeName(from_id):
     for to_id in [6,5,10]:
@@ -233,13 +235,13 @@ def sendDepsforStation(bot, update, station_raw, message_id = -1):
                 bot.sendMessage(update.message.chat_id, text=msg, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
 
 def sendRoutes(bot, update, result, b_time):
-    # try:
+    try:
         from_station_id = idFromXY(bot,update,result.group(1))
         to_station_id = idFromXY(bot,update,result.group(3))
-    # except:
-        # bot.sendMessage(update.message.chat_id, text="Station nicht gefunden :(")
-        # logger.warn('Not matching station name in journeys used by %s', update.message.from_user)
-    # else:
+    except:
+        bot.sendMessage(update.message.chat_id, text="Station nicht gefunden :(")
+        logger.warn('Not matching station name in journeys used by %s', update.message.from_user)
+    else:
         arrival_time = False
         i_time = datetime_to_mvgtime(datetime.datetime.now())
         if b_time:
