@@ -1,6 +1,6 @@
 # coding=utf-8
 
-import logging, os, time, subprocess, re, sys, time
+import logging, os, time, subprocess, re, sys, time, random
 sys.path.append('python_mvg_departures')
 from datetime import *
 from telegram import *
@@ -18,6 +18,12 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     level=logging.INFO)
 
 logger = logging.getLogger(__name__)
+
+shortcuts = {
+    "lab": {"gps":(48.096428, 11.532208), "name": "MunichMakerLab", "stations": (1310,1450)}
+}
+
+walkEmojis = [u"🚶",u"🏃",u"💃",u"🐢"]
 
 def start(bot, update):
     bot.sendMessage(update.message.chat_id, text='Hallo, sende mir den Name einer Haltestelle oder teile deinen Standort, um die Abfahrten für eine Haltestelle zu sehen.\nBenutze /help um mehr Informationen zu erhalten (z.B. über die Routenplanung)')
@@ -103,33 +109,9 @@ def msg(bot, update):
 
 def idFromXY(bot, update, station_raw):
     return get_id_for_station(station_raw)
-    # try:
-    #     station_id = int(station_raw)
-    # except(ValueError):
-    #     station = get_stations(station_raw)[0]
-    #     station_id = int(station['id'])
-    # return station_id
 
 def nameFromXY(bot, update, station_raw):
     return get_stations(station_raw)[0]['name']
-    # try:
-    #     station_id = int(station_raw)
-    # except:
-    #     station = get_stations(station_raw)[0]
-    #     station_name = station['name']
-    # else:
-    #     try:
-    #         station_name = bodgeName(station_id)
-    #     except(ValueError):
-    #         station_name = "Id: "
-    #         bot.sendMessage(update.message.chat_id, text='Leider gibt die MVG API keine Stationsnamen mehr für ids zurück.')
-    # try:
-    #     pass
-    #     #addStation(station_id, station_name)
-    # except(ValueError):
-    #     return "Id: "
-    # else:
-    #     return station_name
 
 def bodgeName(from_id):
     for to_id in [6,5,10]:
@@ -235,9 +217,13 @@ def sendDepsforStation(bot, update, station_raw, message_id = -1):
                 bot.sendMessage(update.message.chat_id, text=msg, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
 
 def sendRoutes(bot, update, result, b_time):
+    station_id = []
     try:
-        from_station_id = idFromXY(bot,update,result.group(1))
-        to_station_id = idFromXY(bot,update,result.group(3))
+        for sid in [result.group(1),result.group(3)]:
+            try:
+                station_id.append(shortcuts[sid]['gps'])
+            except KeyError:
+                station_id.append(idFromXY(bot,update,sid))
     except:
         bot.sendMessage(update.message.chat_id, text="Station nicht gefunden :(")
         logger.warn('Not matching station name in journeys used by %s', update.message.from_user)
@@ -252,12 +238,12 @@ def sendRoutes(bot, update, result, b_time):
             except:
                 bot.sendMessage(update.message.chat_id, text="Zeit ungültig, bitte im Format hh:mm angeben\nAktuelle Zeit wird jetzt als Alternative verwendet")
                 logger.warn('invalid time used by %s', update.message.from_user)
-        route = get_route(from_station_id, to_station_id, i_time, arrival_time)
+        route = get_route(station_id[0], station_id[1], i_time, arrival_time)
 
         msg = buildRouteMsg(route)
 
         bot.sendMessage(update.message.chat_id, text=msg, parse_mode=ParseMode.HTML)
-        logger.info('journey from %s to %s sent to %s, b_time=%s', str(from_station_id), str(to_station_id), update.message.from_user, str(b_time))
+        logger.info('journey from %s to %s sent to %s, b_time=%s', str(station_id[0]), str(station_id[1]), update.message.from_user, str(b_time))
 
 def plan(bot, update, edit = False):
     """ Loop to test plans.py
@@ -314,23 +300,29 @@ def buildRouteMsg(route):
         counter +=1
         body += "\n"
         body += "Option " + str(counter) + ":\n"
-        # body += mvgtime_to_hrs(option['departure']) + " - " + option['from']['name'] + "\n"
         for part in option['connectionPartList']:
-            body += mvgtime_to_hrs(part['departure']) + " - " + part['from']['name'] + "\n"
+            from_name = name_for_route_part(part['from'])
+            to_name = name_for_route_part(part['to'])
+            body += mvgtime_to_hrs(part['departure']) + " - " + from_name + "\n"
             if part['connectionPartType'] == "FOOTWAY":
-                # lat = str(part['to']['latitude'])
-                # lon = str(part['to']['longitude'])
-                # station_name = part['to']['name']
-                # link = MessageEntity("url", 20, str("geo:"+lat+","+lon))
-                # bot.sendMessage(159521737, text=link)
-                body += u"      walk to station\n"
+                body += u"      " + walkEmoji() + " walk\n"
             else:
-                body += "      " + build_label(part['product'], part['label']) + " " + part['destination'] + "\n"
-            body += mvgtime_to_hrs(part['arrival']) + " - " + part['to']['name'] + "\n"
-        # body += mvgtime_to_hrs(option['arrival']) + " - " + option['to']['name'] + "\n"
+                body += addspaces(6) + build_label(part['product'], part['label']) + " " + part['destination'] + "\n"
+            body += mvgtime_to_hrs(part['arrival']) + " - " + to_name + "\n"
     msg=body
-
     return msg
+
+def walkEmoji():
+    return walkEmojis[random.randint(0,len(walkEmojis)-1)]
+def name_for_route_part(part):
+    try:
+        return part['name']
+    except KeyError:
+        for shortcut in shortcuts.iterkeys(): #ugly, needs fix
+            if shortcuts[shortcut]['gps'] == (part['latitude'],part['longitude']):
+                return shortcuts[shortcut]['name']
+            else:
+                return "404"
 
 def build_label(part1,part2):
     service = {'t': "", 'u': "U", 'b': "", 's': "S"}
