@@ -20,10 +20,13 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 shortcuts = {
-    "lab": {"gps":(48.096428, 11.532208), "name": "MunichMakerLab", "stations": (1310,1450)}
+    u"lab": {"gps":(48.096428, 11.532208), "name": "MunichMakerLab"},
+    u"mgm": {"gps":(48.119908, 11.638493), "name": "MichaeliGymnasium"},
+    u"💩": {"gps":(48.177038, 11.591554), "name": u"""CSU - "Christlich" Soziale* Union 💩"""}
 }
-
 walkEmojis = [u"🚶",u"🏃",u"💃",u"🐢"]
+
+emojiList = [u"🌈", u"🤓", u"👹", u"👽", u"👌", u"🖕", u"👅", u"👁", u"👩", u"‍💻", u"👨", u"🎨", u"🎅", u"💆", u"🐣", u"🕷", u"🐉", u"☃", u"🏏"]
 
 def start(bot, update):
     bot.sendMessage(update.message.chat_id, text='Hallo, sende mir den Name einer Haltestelle oder teile deinen Standort, um die Abfahrten für eine Haltestelle zu sehen.\nBenutze /help um mehr Informationen zu erhalten (z.B. über die Routenplanung)')
@@ -35,13 +38,17 @@ def help(bot, update):
     logger.info('help used by %s', update.message.from_user)
 
 def gps(bot, update):
-    stations = get_nearby_stations(update.message.location.latitude, update.message.location.longitude)
+    lat = update.message.location.latitude
+    lon = update.message.location.longitude
+    stations = get_nearby_stations(lat, lon)
     if stations == []:
         bot.sendMessage(update.message.chat_id, text='Keine Stationen in der Nähe gefunden')
         logger.info('No station found near %s', update.message.from_user)
     else:
-        row = 0
         buttons = []
+        buttons.append([])
+        buttons[0].append(InlineKeyboardButton(u"📝 Standort speichern", callback_data="gps|split|" + str(lat) + "|" + str(lon)))
+        row = 1
         for station in stations:
             buttons.append([])
             service = {'t': "Tram", 'u': "U-Bahn", 'b': "Bus", 's': "S-Bahn"}
@@ -62,8 +69,8 @@ def gps(bot, update):
             split = "station|split|"
             buttons[row].append(InlineKeyboardButton(name, callback_data=split+str(station_id)))
             row += 1
-    bot.sendMessage(update.message.chat_id, text="Suche eine Station aus:\nName, Entfernung, Produkte", reply_markup=InlineKeyboardMarkup(buttons))
-    logger.info('Sending %s gps station select buttons', update.message.from_user)
+        bot.sendMessage(update.message.chat_id, text="Wähle eine Station:", reply_markup=InlineKeyboardMarkup(buttons))
+        logger.info('Sending %s gps station select buttons', update.message.from_user)
 
 def addStation(station_id,station_name):
     if idFromXY(station_name) == station_id:
@@ -85,6 +92,9 @@ def buttonHandler(bot, update):
     elif dataType == "planPlanId":
         data = data.split('|wurst|')
         sendPlanPlan(bot, update, int(data[1]), int(data[0]))
+    elif dataType == "gps":
+        data = data.split('|')
+        addShortcut(bot, update, float(data[0]), float(data[1]))
     else:
         logger.error("Something went wrong with the buttonHandler, no matching dataType")
 
@@ -220,6 +230,7 @@ def sendRoutes(bot, update, result, b_time):
     station_id = []
     try:
         for sid in [result.group(1),result.group(3)]:
+            sid = sid.decode('utf-8')
             try:
                 station_id.append(shortcuts[sid]['gps'])
             except KeyError:
@@ -244,6 +255,25 @@ def sendRoutes(bot, update, result, b_time):
 
         bot.sendMessage(update.message.chat_id, text=msg, parse_mode=ParseMode.HTML)
         logger.info('journey from %s to %s sent to %s, b_time=%s', str(station_id[0]), str(station_id[1]), update.message.from_user, str(b_time))
+
+def buildRouteMsg(route):
+    body=""
+    counter=0
+    for option in route:
+        counter +=1
+        body += "\n"
+        body += "Option " + str(counter) + ":\n"
+        for part in option['connectionPartList']:
+            from_name = name_for_route_part(part['from'])
+            to_name = name_for_route_part(part['to'])
+            body += mvgtime_to_hrs(part['departure']) + " - " + from_name + "\n"
+            if part['connectionPartType'] == "FOOTWAY":
+                body += u"      " + random.choice(walkEmojis) + " walk\n"
+            else:
+                body += addspaces(6) + build_label(part['product'], part['label']) + " " + part['destination'] + "\n"
+            body += mvgtime_to_hrs(part['arrival']) + " - " + to_name + "\n"
+    msg=body
+    return msg
 
 def plan(bot, update, edit = False):
     """ Loop to test plans.py
@@ -293,36 +323,18 @@ def sendPlanPlan(bot, update, category_id, plan_id):
     bot.send_document(update.message.chat_id, file_id)
     logger.info('Sending real plan select buttons to %s', update.from_user)
 
-def buildRouteMsg(route):
-    body=""
-    counter=0
-    for option in route:
-        counter +=1
-        body += "\n"
-        body += "Option " + str(counter) + ":\n"
-        for part in option['connectionPartList']:
-            from_name = name_for_route_part(part['from'])
-            to_name = name_for_route_part(part['to'])
-            body += mvgtime_to_hrs(part['departure']) + " - " + from_name + "\n"
-            if part['connectionPartType'] == "FOOTWAY":
-                body += u"      " + walkEmoji() + " walk\n"
-            else:
-                body += addspaces(6) + build_label(part['product'], part['label']) + " " + part['destination'] + "\n"
-            body += mvgtime_to_hrs(part['arrival']) + " - " + to_name + "\n"
-    msg=body
-    return msg
-
-def walkEmoji():
-    return walkEmojis[random.randint(0,len(walkEmojis)-1)]
 def name_for_route_part(part):
     try:
         return part['name']
     except KeyError:
-        for shortcut in shortcuts.iterkeys(): #ugly, needs fix
-            if shortcuts[shortcut]['gps'] == (part['latitude'],part['longitude']):
-                return shortcuts[shortcut]['name']
-            else:
-                return "404"
+        key = shortcutKeyForGps((part['latitude'],part['longitude']))
+        if key == None:
+            return "Koordinaten"
+        else:
+            return shortcuts[key]['name']
+
+def r(gps, d=4):
+     return (round(gps[0],d),round(gps[1],d))
 
 def build_label(part1,part2):
     service = {'t': "", 'u': "U", 'b': "", 's': "S"}
@@ -343,6 +355,31 @@ def addspaces(n, string=""):
         string=string+" "
         n=n-1
     return string
+
+def findNotUsedEmoji():
+    for k in emojiList:
+        if not k in shortcuts:
+            return k
+
+def addShortcut(bot, update, lat, lon, short=False, name=""):
+    key = shortcutKeyForGps((lat,lon))
+    if key == None:
+        if not short:
+            short = findNotUsedEmoji()
+            shortcuts[short] = {"name": name, "gps": (lat,lon)}
+            logger.info('%s saved new location %s.', update.message.from_user, short)
+    else:
+        short = key
+        logger.info('%s tried to resave %s', update.message.from_user, short)
+
+    msg = u"Du kannst nun mit '" + short + u"' temporär zu oder von diesem Standort Routen planen."
+    bot.editMessageText(chat_id=update.message.chat_id, text=msg, message_id=update.message.message_id)
+
+def shortcutKeyForGps(gps):
+    for key, shortcut in shortcuts.iteritems():
+        if r(shortcut['gps']) == r((gps[0],gps[1])):
+            return key
+    return None
 
 def wasistdas(bdaot, update):
     bot.sendMessage(update.message.chat_id, text='All stations have unique station ids. They can be used instead of a station name. For example, you can write 5 instead of Ostbahnhof.')
