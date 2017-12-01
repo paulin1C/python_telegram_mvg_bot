@@ -19,8 +19,10 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
+weekdays = ["Mo","Di","Mi","Do","Fr","Sa","So"]
+
 shortcuts = {
-    u"lab": {"gps":(48.096428, 11.532208), "name": "MunichMakerLab"},
+    u"lab": {"gps":(48.158681, 11.550225), "name": "MunichMakerLab"},
     u"mgm": {"gps":(48.119908, 11.638493), "name": "MichaeliGymnasium"},
     u"💩": {"gps":(48.177038, 11.591554), "name": u"""CSU - "Christlich" Soziale* Union 💩"""}
 }
@@ -72,12 +74,6 @@ def gps(bot, update):
         bot.sendMessage(update.message.chat_id, text="Wähle eine Station:", reply_markup=InlineKeyboardMarkup(buttons))
         logger.info('Sending %s gps station select buttons', update.message.from_user)
 
-def addStation(station_id,station_name):
-    if idFromXY(station_name) == station_id:
-        station_ids[station_id] = station_name
-    else:
-        raise ValueError("name and id don't match")
-
 def buttonHandler(bot, update):
     update = update.callback_query
     response = update.data.split('|split|')
@@ -99,40 +95,37 @@ def buttonHandler(bot, update):
         logger.error("Something went wrong with the buttonHandler, no matching dataType")
 
 def msg(bot, update):
-    #thanks to @uberardy for these regulare expressions
+    # bot.sendMessage(chat_id = update.message.chat_id, text = "Die MVG website ist im Moment nicht erreichbar, deshalb kann es zu Verzögerungen bei der Nachrichtenzustellung kommen. 😉")
+    logger.debug("New message")
+    subfile = open('users.txt', 'w+')
+    subfile.write("%s\n" % str(update.message.from_user))
+    subfile.close()
+    #thanks to @uberardy for these regular expressions
     pattern1 = "(?:von )?(.+) (nach|to) (.*)"
     pattern2 = "(?:von )?(.+) (nach|to) (.*)(?: (um|ab|bis|at|until) ([0-9]{1,2}:?[0-9]{2}))"
-    text = update.message.text.encode('utf8')
+    text = str(update.message.text.encode('utf8'))
     result1 = re.match(pattern1, text)
-    if result1 == None:
-        station = text
-        sendDepsforStation(bot, update, station)
-    else:
+    if result1 == None: #not a route
+        logger.debug("not a route")
+        logger.debug("station")
+        sendDepsforStation(bot, update, text)
+    else: #route
+        logger.debug("route")
         result2 = re.match(pattern2, text)
         if result2 == None:
             result = result1
-            b_time = False
+            b_time = False  # route without time
         else:
             result = result2
-            b_time = True
+            b_time = True  # route with time
         sendRoutes(bot, update, result, b_time)
 
-def idFromXY(bot, update, station_raw):
-    return get_id_for_station(station_raw)
+def getStationDetails(station_raw):
+    station = get_stations(station_raw)[0]
+    return station['id'],station['name']
 
-def nameFromXY(bot, update, station_raw):
-    return get_stations(station_raw)[0]['name']
-
-def bodgeName(from_id):
-    for to_id in [6,5,10]:
-        try:
-            station_name = get_route(from_id, to_id)[0]['connectionPartList'][0]['from']['name']
-        except:
-            pass
-        else:
-            logger.info("Bodged name for %i with %i", from_id, to_id)
-            return station_name
-    raise(ValueError) #höhö
+def sendLocation(bot, update, gps):
+    bot.sendLocation(chat_id=update.message.chat_id, latitude=gps[0], longitude=gps[1])
 
 def sendDepsforStation(bot, update, station_raw, message_id = -1):
     refresh = False
@@ -141,8 +134,7 @@ def sendDepsforStation(bot, update, station_raw, message_id = -1):
         from_user = update.from_user
         refresh = True
     try:
-        station_name = nameFromXY(bot, update, station_raw)
-        station_id = idFromXY(bot, update, station_raw)
+        station_id, station_name = getStationDetails(station_raw)
     except:
         bot.sendMessage(update.message.chat_id, text="Station nicht gefunden :(")
         logger.warn('Not matching station name in deps used by %s', update.message.from_user)
@@ -158,7 +150,6 @@ def sendDepsforStation(bot, update, station_raw, message_id = -1):
             now = datetime.datetime.now()
             header="minutes, service, destination"
             body = ""
-
             times=[]
             products=[]
             destinations=[]
@@ -228,13 +219,14 @@ def sendDepsforStation(bot, update, station_raw, message_id = -1):
 
 def sendRoutes(bot, update, result, b_time):
     station_id = []
+    log_time_in_past = False
     try:
         for sid in [result.group(1),result.group(3)]:
             sid = sid.decode('utf-8')
             try:
-                station_id.append(shortcuts[sid]['gps'])
+                station_id.append(shortcuts[sid.lower()]['gps'])
             except KeyError:
-                station_id.append(idFromXY(bot,update,sid))
+                station_id.append(getStationDetails(sid)[0])
     except:
         bot.sendMessage(update.message.chat_id, text="Station nicht gefunden :(")
         logger.warn('Not matching station name in journeys used by %s', update.message.from_user)
@@ -245,22 +237,33 @@ def sendRoutes(bot, update, result, b_time):
             if result.group(4) in ["bis","until"]:
                 arrival_time = True
             try:
-                i_time = datetime.datetime.combine(datetime.datetime.now(), datetime.datetime.strptime(result.group(5), "%H:%M").time())
+                dt = datetime.datetime.combine(datetime.datetime.now(), datetime.datetime.strptime(result.group(5), "%H:%M").time())
             except:
                 bot.sendMessage(update.message.chat_id, text="Zeit ungültig, bitte im Format hh:mm angeben\nAktuelle Zeit wird jetzt als Alternative verwendet")
                 logger.warn('invalid time used by %s', update.message.from_user)
+            else:
+                if datetime.datetime.now().time() > dt.time():
+                    bot.sendMessage(chat_id=update.message.chat_id, text="Liegt in der Vergangneneit!\nEs werden Verbindungen für morgen angezeigt.")
+                    dt = dt + datetime.timedelta(days=1)
+                    log_time_in_past = True
+                i_time = datetime_to_mvgtime(dt)
+
+
         route = get_route(station_id[0], station_id[1], i_time, arrival_time)
 
         msg = buildRouteMsg(route)
 
         bot.sendMessage(update.message.chat_id, text=msg, parse_mode=ParseMode.HTML)
-        logger.info('journey from %s to %s sent to %s, b_time=%s', str(station_id[0]), str(station_id[1]), update.message.from_user, str(b_time))
+        logger.info('journey from %s to %s sent to %s, b_time=%s', str(station_id[0]), str(station_id[1]), str(update.message.from_user), str(b_time))
 
 def buildRouteMsg(route):
     body=""
     counter=0
     for option in route:
         counter +=1
+        if counter > 8:
+            logger.info("Limiting number of options!")
+            break
         body += "\n"
         body += "Option " + str(counter) + ":\n"
         for part in option['connectionPartList']:
@@ -268,7 +271,7 @@ def buildRouteMsg(route):
             to_name = name_for_route_part(part['to'])
             body += mvgtime_to_hrs(part['departure']) + " - " + from_name + "\n"
             if part['connectionPartType'] == "FOOTWAY":
-                body += u"      " + random.choice(walkEmojis) + " walk\n"
+                body += u"      " + random.choice(walkEmojis) + " laufen\n"
             else:
                 body += addspaces(6) + build_label(part['product'], part['label']) + " " + part['destination'] + "\n"
             body += mvgtime_to_hrs(part['arrival']) + " - " + to_name + "\n"
@@ -329,11 +332,11 @@ def name_for_route_part(part):
     except KeyError:
         key = shortcutKeyForGps((part['latitude'],part['longitude']))
         if key == None:
-            return "Koordinaten"
+            return str(part['latitude']) + ", " + str(part['longitude'])
         else:
             return shortcuts[key]['name']
 
-def r(gps, d=4):
+def r(gps, d=3):
      return (round(gps[0],d),round(gps[1],d))
 
 def build_label(part1,part2):
@@ -366,7 +369,7 @@ def addShortcut(bot, update, lat, lon, short=False, name=""):
     if key == None:
         if not short:
             short = findNotUsedEmoji()
-            shortcuts[short] = {"name": name, "gps": (lat,lon)}
+            shortcuts[short] = {"name": name.lower(), "gps": (lat,lon)}
             logger.info('%s saved new location %s.', update.message.from_user, short)
     else:
         short = key
@@ -386,7 +389,11 @@ def wasistdas(bdaot, update):
     logger.info('wasistdas used by %s', update.message.from_user)
 
 def mvgtime_to_hrs(time):
-    time = datetime.datetime.fromtimestamp(time/1000).strftime("%H:%M")
+    dt = datetime.datetime.fromtimestamp(time/1000)
+    time = dt.strftime("%H:%M")
+    wday = dt.weekday()
+    if not datetime.datetime.now().weekday() == wday:
+        time = weekdays[wday] + " " + time
     return time
 
 def datetime_to_mvgtime(dtime):
@@ -397,15 +404,15 @@ def error(bot, update, error):
     logger.warn('Update "%s" caused error "%s"' % (update, error))
 
 def main():
-
+    logger.info("Starting")
     dp = updater.dispatcher #not double penetration
 
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("plan", plan))
     dp.add_handler(CommandHandler("Wasistdas", wasistdas))
     dp.add_handler(CommandHandler("help", help))
-    dp.add_handler(MessageHandler([Filters.location], gps))
-    dp.add_handler(MessageHandler([Filters.text], msg))
+    dp.add_handler(MessageHandler(Filters.location, gps))
+    dp.add_handler(MessageHandler(Filters.text, msg))
     dp.add_handler(CallbackQueryHandler(buttonHandler))
 
     dp.add_error_handler(error)
