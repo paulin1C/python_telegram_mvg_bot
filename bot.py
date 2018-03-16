@@ -265,7 +265,7 @@ def buildRouteMsg(route):
             logger.info("Limiting number of options!")
             break
         body += "\n"
-        body += "Option " + str(counter) + ":\n"
+        body += "Option " + str(counter) + " (Ring " + str(option['ringFrom']) + "-" + str(option["ringTo"]) + "):\n"
         for part in option['connectionPartList']:
             from_name = name_for_route_part(part['from'])
             to_name = name_for_route_part(part['to'])
@@ -279,17 +279,6 @@ def buildRouteMsg(route):
     return msg
 
 def plan(bot, update, edit = False):
-    """ Loop to test plans.py
-    msg = "Test Planausgabe, wird noch zu buttons"
-    for category in plans:
-        msg += "\n" + str(category['category_id']) + ": "
-        msg += category['name']
-        for plan in category['content']:
-            msg += "\n  "+str(plan['plan_id'])+": "
-            msg += plan['name']
-    bot.sendMessage(update.message.chat_id, text=msg)
-    """
-
     split = "planCategoryId|split|"
     row = 0
     buttons = []
@@ -340,6 +329,7 @@ def r(gps, d=3):
      return (round(gps[0],d),round(gps[1],d))
 
 def build_label(part1,part2):
+    return part2
     service = {'t': "", 'u': "U", 'b': "", 's': "S"}
     try:
         label = service[part1]
@@ -384,10 +374,6 @@ def shortcutKeyForGps(gps):
             return key
     return None
 
-def wasistdas(bdaot, update):
-    bot.sendMessage(update.message.chat_id, text='All stations have unique station ids. They can be used instead of a station name. For example, you can write 5 instead of Ostbahnhof.')
-    logger.info('wasistdas used by %s', update.message.from_user)
-
 def mvgtime_to_hrs(time):
     dt = datetime.datetime.fromtimestamp(time/1000)
     time = dt.strftime("%H:%M")
@@ -409,7 +395,6 @@ def main():
 
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("plan", plan))
-    dp.add_handler(CommandHandler("Wasistdas", wasistdas))
     dp.add_handler(CommandHandler("help", help))
     dp.add_handler(MessageHandler(Filters.location, gps))
     dp.add_handler(MessageHandler(Filters.text, msg))
