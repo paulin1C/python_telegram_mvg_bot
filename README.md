@@ -4,5 +4,4 @@ and the python mvg api:
 https://github.com/leftshift/python_mvg_api
 
 Install them from pypi:
-`pip install python-telegram-bot`
-`pip install mvg-api`
+`pip install python-telegram-bot mvg-api`
