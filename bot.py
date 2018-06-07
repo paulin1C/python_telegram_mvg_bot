@@ -4,6 +4,7 @@ import logging, os, time, subprocess, re, sys, time, random
 from datetime import *
 from telegram import *
 from telegram.ext import *
+sys.path.append("python_mvg_api")
 from mvg_api import *
 import key, plans
 
