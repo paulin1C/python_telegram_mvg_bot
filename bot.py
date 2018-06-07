@@ -174,15 +174,12 @@ def sendDepsforStation(bot, update, station_raw, message_id = -1):
             while(i > 0):
                 row=products[c]
                 row=addspaces(maxlen['products']-len(products[c])+1, row)
-                if len(destinations[c]) > 18:
-                    row1 = destinations[c][:18] + "\n"
-                    row2 = addspaces(maxlen['products']+1)
-                    row2 = row2 + destinations[c][18:]
-                    row2 = addspaces(maxlen['destinations']-len(destinations[c][18:])+1, row2)
-                    row = row + row1 + row2
-                else:
-                    row=row+destinations[c]
-                    row=addspaces(maxlen['destinations']-len(destinations[c])+1,row)
+                while len(destinations[c]) > 18:
+                    row += destinations[c][:18] + "\n"
+                    row = addspaces(maxlen['products']+1, row)
+                    destinations[c] = destinations[c][18:]
+                row=row+destinations[c]
+                row=addspaces(maxlen['destinations']-len(destinations[c])+1,row)
                 row=row+times[c]
                 body=body+"\n"+row
                 i=i-1
