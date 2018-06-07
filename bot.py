@@ -1,11 +1,10 @@
 # coding=utf-8
 
 import logging, os, time, subprocess, re, sys, time, random
-sys.path.append('python_mvg_departures')
 from datetime import *
 from telegram import *
 from telegram.ext import *
-from mvg import *
+from mvg_api import *
 import key, plans
 
 plans = plans.plans
