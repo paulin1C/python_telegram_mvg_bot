@@ -261,8 +261,8 @@ def buildRouteMsg(route):
         if counter > 8:
             logger.info("Limiting number of options!")
             break
-        body += "\n"
-        body += "Option " + str(counter) + " (Ring " + str(option['ringFrom']) + "-" + str(option["ringTo"]) + "):\n"
+        duration = (int(option['arrival']) - int(option['departure'])) // 60000
+        body += "\n%s. Option: %s min; Ring %s-%s\n" % (counter, duration, option['ringFrom'], option["ringTo"])
         for part in option['connectionPartList']:
             from_name = name_for_route_part(part['from'])
             to_name = name_for_route_part(part['to'])
