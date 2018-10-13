@@ -247,21 +247,34 @@ def sendRoutes(bot, update, result, b_time):
 
 
         route = get_route(station_id[0], station_id[1], i_time, arrival_time)
-
+        if len(route) > 5:
+            if arrival_time:
+                route = route[-5:]
+            else:
+                route = route[:5]
         msg = buildRouteMsg(route)
 
         bot.sendMessage(update.message.chat_id, text=msg, parse_mode=ParseMode.HTML)
         logger.info('journey from %s to %s sent to %s, b_time=%s', str(station_id[0]), str(station_id[1]), str(update.message.from_user), str(b_time))
+
+def fix_missing(json, tags):
+    for tag in tags:
+        try:
+            x = json[tag]
+        except KeyError:
+            json[tag] = ""
+    return json
 
 def buildRouteMsg(route):
     body=""
     counter=0
     for option in route:
         counter +=1
-        if counter > 8:
+        if counter > 5:
             logger.info("Limiting number of options!")
             break
         duration = (int(option['arrival']) - int(option['departure'])) // 60000
+        fix_missing(option, ["ringFrom","ringTo"])
         body += "\n%s. Option: %s min; Ring %s-%s\n" % (counter, duration, option['ringFrom'], option["ringTo"])
         for part in option['connectionPartList']:
             from_name = name_for_route_part(part['from'])
