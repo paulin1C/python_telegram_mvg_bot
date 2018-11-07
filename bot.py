@@ -24,7 +24,8 @@ weekdays = ["Mo","Di","Mi","Do","Fr","Sa","So"]
 shortcuts = {
     u"lab": {"gps":(48.158681, 11.550225), "name": "MunichMakerLab"},
     u"mgm": {"gps":(48.119908, 11.638493), "name": "MichaeliGymnasium"},
-    u"💩": {"gps":(48.177038, 11.591554), "name": u"""CSU - "Christlich" Soziale* Union 💩"""}
+    u"💩": {"gps":(48.177038, 11.591554), "name": u"""CSU - "Christlich" Soziale* Union 💩"""},
+    u"marat": {"gps":(48.1239256, 11.5603815), "name": "Kafe Marat"}
 }
 walkEmojis = [u"🚶",u"🏃",u"💃",u"🐢"]
 
