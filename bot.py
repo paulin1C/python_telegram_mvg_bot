@@ -98,9 +98,6 @@ def buttonHandler(bot, update):
 def msg(bot, update):
     # bot.sendMessage(chat_id = update.message.chat_id, text = "Die MVG website ist im Moment nicht erreichbar, deshalb kann es zu Verzögerungen bei der Nachrichtenzustellung kommen. 😉")
     logger.debug("New message")
-    subfile = open('users.txt', 'w+')
-    subfile.write("%s\n" % str(update.message.from_user))
-    subfile.close()
     #thanks to @uberardy for these regular expressions
     pattern1 = "(?:von )?(.+) (nach|to) (.*)"
     pattern2 = "(?:von )?(.+) (nach|to) (.*)(?: (um|ab|bis|at|until) ([0-9]{1,2}:?[0-9]{2}))"
@@ -216,16 +213,16 @@ def sendDepsforStation(bot, update, station_raw, message_id = -1):
                 bot.sendMessage(update.message.chat_id, text=msg, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
 
 def sendRoutes(bot, update, result, b_time):
-    station_id = []
+    station_ids = []
     log_time_in_past = False
     try:
         for sid in [result.group(1),result.group(3)]:
-            sid = sid.decode('utf-8')
             try:
-                station_id.append(shortcuts[sid.lower()]['gps'])
+                station_ids.append(shortcuts[sid.lower()]['gps'])
             except KeyError:
-                station_id.append(getStationDetails(sid)[0])
+                station_ids.append(getStationDetails(sid)[0])
     except:
+
         bot.sendMessage(update.message.chat_id, text="Station nicht gefunden :(")
         logger.warn('Not matching station name in journeys used by %s', update.message.from_user)
     else:
@@ -247,7 +244,7 @@ def sendRoutes(bot, update, result, b_time):
                 i_time = datetime_to_mvgtime(dt)
 
 
-        route = get_route(station_id[0], station_id[1], i_time, arrival_time)
+        route = get_route(station_ids[0], station_ids[1], i_time, arrival_time)
         if len(route) > 5:
             if arrival_time:
                 route = route[-5:]
@@ -256,7 +253,7 @@ def sendRoutes(bot, update, result, b_time):
         msg = buildRouteMsg(route)
 
         bot.sendMessage(update.message.chat_id, text=msg, parse_mode=ParseMode.HTML)
-        logger.info('journey from %s to %s sent to %s, b_time=%s', str(station_id[0]), str(station_id[1]), str(update.message.from_user), str(b_time))
+        logger.info('journey from %s to %s sent to %s, b_time=%s', str(station_ids[0]), str(station_ids[1]), str(update.message.from_user), str(b_time))
 
 def fix_missing(json, tags):
     for tag in tags:
