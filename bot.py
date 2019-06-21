@@ -101,7 +101,7 @@ def msg(bot, update):
     #thanks to @uberardy for these regular expressions
     pattern1 = "(?:von )?(.+) (nach|to) (.*)"
     pattern2 = "(?:von )?(.+) (nach|to) (.*)(?: (um|ab|bis|at|until) ([0-9]{1,2}:?[0-9]{2}))"
-    text = str(update.message.text.encode('utf8'))
+    text = update.message.text
     result1 = re.match(pattern1, text)
     if result1 == None: #not a route
         logger.debug("not a route")
@@ -133,9 +133,9 @@ def sendDepsforStation(bot, update, station_raw, message_id = -1):
         refresh = True
     try:
         station_id, station_name = getStationDetails(station_raw)
-    except:
+    except IndexError:
         bot.sendMessage(update.message.chat_id, text="Station nicht gefunden :(")
-        logger.warn('Not matching station name in deps used by %s', update.message.from_user)
+        logger.warning('Not matching station name in deps used by %s', update.message.from_user)
     else:
         # station_name = "testname" #get_stations(station_id)[0]['name']
         departures = get_departures(station_id)
@@ -154,7 +154,7 @@ def sendDepsforStation(bot, update, station_raw, message_id = -1):
             i=0
             for departure in departures:
                 len_dTM = len(str(departure['departureTimeMinutes']))
-                if not len_dTM > 3:
+                if True: # not len_dTM > 3:
                     times.append(str(departure['departureTimeMinutes']))
                     product = build_label(departure['product'], departure['label'])
                     products.append(product)
@@ -208,7 +208,7 @@ def sendDepsforStation(bot, update, station_raw, message_id = -1):
                     bot.editMessageText(chat_id=update.message.chat_id, text=msg, message_id=message_id, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
                 except:
                     bot.sendMessage(update.message.chat_id, text="Stop spamming!")
-                    logger.warn('User used refresh more than once per second: %s' % (from_user))
+                    logger.warning('User used refresh more than once per second: %s' % (from_user))
             else:
                 bot.sendMessage(update.message.chat_id, text=msg, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
 
@@ -224,7 +224,7 @@ def sendRoutes(bot, update, result, b_time):
     except:
 
         bot.sendMessage(update.message.chat_id, text="Station nicht gefunden :(")
-        logger.warn('Not matching station name in journeys used by %s', update.message.from_user)
+        logger.warning('Not matching station name in journeys used by %s', update.message.from_user)
     else:
         arrival_time = False
         i_time = datetime_to_mvgtime(datetime.datetime.now())
@@ -235,7 +235,7 @@ def sendRoutes(bot, update, result, b_time):
                 dt = datetime.datetime.combine(datetime.datetime.now(), datetime.datetime.strptime(result.group(5), "%H:%M").time())
             except:
                 bot.sendMessage(update.message.chat_id, text="Zeit ungültig, bitte im Format hh:mm angeben\nAktuelle Zeit wird jetzt als Alternative verwendet")
-                logger.warn('invalid time used by %s', update.message.from_user)
+                logger.warning('invalid time used by %s', update.message.from_user)
             else:
                 if datetime.datetime.now().time() > dt.time():
                     bot.sendMessage(chat_id=update.message.chat_id, text="Liegt in der Vergangneneit!\nEs werden Verbindungen für morgen angezeigt.")
@@ -245,15 +245,19 @@ def sendRoutes(bot, update, result, b_time):
 
 
         route = get_route(station_ids[0], station_ids[1], i_time, arrival_time)
-        if len(route) > 5:
-            if arrival_time:
-                route = route[-5:]
-            else:
-                route = route[:5]
-        msg = buildRouteMsg(route)
+        if route:
+            if len(route) > 5:
+                if arrival_time:
+                    route = route[-5:]
+                else:
+                    route = route[:5]
+            msg = buildRouteMsg(route)
 
-        bot.sendMessage(update.message.chat_id, text=msg, parse_mode=ParseMode.HTML)
-        logger.info('journey from %s to %s sent to %s, b_time=%s', str(station_ids[0]), str(station_ids[1]), str(update.message.from_user), str(b_time))
+            bot.sendMessage(update.message.chat_id, text=msg, parse_mode=ParseMode.HTML)
+            logger.info('journey from %s to %s sent to %s, b_time=%s', str(station_ids[0]), str(station_ids[1]), str(update.message.from_user), str(b_time))
+        else:
+            bot.sendMessage(update.message.chat_id, text="Keine Route gefunden :(\nBitte Flugtaxi verwenden.")
+            logger.warning('no route between {} and {} for {}'.format(station_ids[0], station_ids[1], update.message.from_user))
 
 def fix_missing(json, tags):
     for tag in tags:
@@ -377,7 +381,7 @@ def addShortcut(bot, update, lat, lon, short=False, name=""):
     bot.editMessageText(chat_id=update.message.chat_id, text=msg, message_id=update.message.message_id)
 
 def shortcutKeyForGps(gps):
-    for key, shortcut in shortcuts.iteritems():
+    for key, shortcut in shortcuts.items():
         if r(shortcut['gps']) == r((gps[0],gps[1])):
             return key
     return None
@@ -395,7 +399,7 @@ def datetime_to_mvgtime(dtime):
     return time
 
 def error(bot, update, error):
-    logger.warn('Update "%s" caused error "%s"' % (update, error))
+    logger.warning('Update "%s" caused error "%s"' % (update, error))
 
 def main():
     logger.info("Starting")
