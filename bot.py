@@ -1,6 +1,6 @@
 # coding=utf-8
 
-import logging, os, time, subprocess, re, sys, time, random
+import logging, os, time, subprocess, re, sys, time, random, string
 from datetime import *
 from telegram import *
 from telegram.ext import *
@@ -30,6 +30,8 @@ shortcuts = {
 walkEmojis = [u"🚶",u"🏃",u"💃",u"🐢"]
 
 emojiList = [u"🌈", u"🤓", u"👹", u"👽", u"👌", u"🖕", u"👅", u"👁", u"👩", u"‍💻", u"👨", u"🎨", u"🎅", u"💆", u"🐣", u"🕷", u"🐉", u"☃", u"🏏"]
+
+allowed_chars = string.ascii_letters + " :-ßüöäÜÄÖ.@i0123456789" + "".join(emojiList)
 
 def start(bot, update):
     bot.sendMessage(update.message.chat_id, text='Hallo, sende mir den Name einer Haltestelle oder teile deinen Standort, um die Abfahrten für eine Haltestelle zu sehen.\nBenutze /help um mehr Informationen zu erhalten (z.B. über die Routenplanung)')
@@ -102,21 +104,30 @@ def msg(bot, update):
     pattern1 = "(?:von )?(.+) (nach|to) (.*)"
     pattern2 = "(?:von )?(.+) (nach|to) (.*)(?: (um|ab|bis|at|until) ([0-9]{1,2}:?[0-9]{2}))"
     text = update.message.text
-    result1 = re.match(pattern1, text)
-    if result1 == None: #not a route
-        logger.debug("not a route")
-        logger.debug("station")
-        sendDepsforStation(bot, update, text)
-    else: #route
-        logger.debug("route")
-        result2 = re.match(pattern2, text)
-        if result2 == None:
-            result = result1
-            b_time = False  # route without time
-        else:
-            result = result2
-            b_time = True  # route with time
-        sendRoutes(bot, update, result, b_time)
+    valid_msg = True
+    for char in text:
+        if not char in allowed_chars:
+            valid_msg = False
+            break;
+    if valid_msg:
+        result1 = re.match(pattern1, text)
+        if result1 == None: #not a route
+            logger.debug("not a route")
+            logger.debug("station")
+            sendDepsforStation(bot, update, text)
+        else: #route
+            logger.debug("route")
+            result2 = re.match(pattern2, text)
+            if result2 == None:
+                result = result1
+                b_time = False  # route without time
+            else:
+                result = result2
+                b_time = True  # route with time
+            sendRoutes(bot, update, result, b_time)
+    else:
+        logger.warning("Illegal char {} from {}".format(char, update.message.from_user))
+        update.message.reply_text("Nachricht enthällt ein nicht erlaubtes Zeichen")
 
 def getStationDetails(station_raw):
     station = get_stations(station_raw)[0]
