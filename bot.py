@@ -122,6 +122,13 @@ def getStationDetails(station_raw):
     station = get_stations(station_raw)[0]
     return station['id'],station['name']
 
+def getLocation(raw):
+    if "@" in raw[0:3]: # street address
+        location = get_locations(raw.strip("@"))[0]
+        return (location["latitude"],location["longitude"])
+    else:
+        return getStationDetails(raw)[0]
+
 def sendLocation(bot, update, gps):
     bot.sendLocation(chat_id=update.message.chat_id, latitude=gps[0], longitude=gps[1])
 
@@ -213,14 +220,14 @@ def sendDepsforStation(bot, update, station_raw, message_id = -1):
                 bot.sendMessage(update.message.chat_id, text=msg, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
 
 def sendRoutes(bot, update, result, b_time):
-    station_ids = []
     log_time_in_past = False
+    start_dest = [] # start and destination of route
     try:
         for sid in [result.group(1),result.group(3)]:
             try:
-                station_ids.append(shortcuts[sid.lower()]['gps'])
+                start_dest.append(shortcuts[sid.lower()]['gps'])
             except KeyError:
-                station_ids.append(getStationDetails(sid)[0])
+                start_dest.append(getLocation(sid))
     except:
 
         bot.sendMessage(update.message.chat_id, text="Station nicht gefunden :(")
@@ -244,7 +251,7 @@ def sendRoutes(bot, update, result, b_time):
                 i_time = datetime_to_mvgtime(dt)
 
 
-        route = get_route(station_ids[0], station_ids[1], i_time, arrival_time)
+        route = get_route(start_dest[0], start_dest[1], i_time, arrival_time)
         if route:
             if len(route) > 5:
                 if arrival_time:
@@ -254,10 +261,10 @@ def sendRoutes(bot, update, result, b_time):
             msg = buildRouteMsg(route)
 
             bot.sendMessage(update.message.chat_id, text=msg, parse_mode=ParseMode.HTML)
-            logger.info('journey from %s to %s sent to %s, b_time=%s', str(station_ids[0]), str(station_ids[1]), str(update.message.from_user), str(b_time))
+            logger.info('journey from {} to {} sent to {}, b_time={}'.format(start_dest[0], start_dest[1], update.message.from_user, b_time))
         else:
             bot.sendMessage(update.message.chat_id, text="Keine Route gefunden :(\nBitte Flugtaxi verwenden.")
-            logger.warning('no route between {} and {} for {}'.format(station_ids[0], station_ids[1], update.message.from_user))
+            logger.warning('no route between {} and {} for {}'.format(start_dest[0], start_dest[1], update.message.from_user))
 
 def fix_missing(json, tags):
     for tag in tags:
