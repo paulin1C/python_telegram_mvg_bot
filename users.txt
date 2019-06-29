@@ -1,1 +1,0 @@
-{'username': u'Paul0x1C', 'first_name': u'Paul', 'is_bot': False, 'id': 159521737, 'language_code': u'en'}
